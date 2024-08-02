@@ -11,40 +11,43 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-// Taken from https://www.innoq.com/en/blog/2024/02/rate-limiting-with-spring-boot/
-
 @Aspect
 @Component
 public class RateLimitAspect {
 
-    public static final String ERROR_MESSAGE = "To many request at endpoint %s from IP %s! Please try again after %d milliseconds!";
-    private final ConcurrentHashMap<String, List<Long>> requestCounts = new ConcurrentHashMap<>();
+	public static final String ERROR_MESSAGE = "To many request at endpoint %s from IP %s! Please try again after %d milliseconds!";
 
-    private final int rateLimit = 10;
+	private final ConcurrentHashMap<String, List<Long>> requestCounts = new ConcurrentHashMap<>();
 
-    private final long rateDuration = 60000;
+	private static final int rateLimit = 10;
 
-    @Before("@annotation(com.example.url_shortener.utils.WithRateLimitProtection)")
-    public void rateLimit() {
-        final ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
-        final String key = requestAttributes.getRequest().getRemoteAddr();
-        final long currentTime = System.currentTimeMillis();
-        requestCounts.putIfAbsent(key, new ArrayList<>());
-        requestCounts.get(key).add(currentTime);
-        cleanUpRequestCounts(currentTime);
-        if (requestCounts.get(key).size() > rateLimit) {
-            throw new RateLimitException(String.format(ERROR_MESSAGE, requestAttributes.getRequest().getRequestURI(), key, rateDuration));
-        }
-    }
+	private static final long rateDuration = 60000;
 
-    private void cleanUpRequestCounts(final long currentTime) {
-        requestCounts.values().forEach(l -> {
-            l.removeIf(t -> timeIsTooOld(currentTime, t));
-        });
-    }
+	@Before("@annotation(com.example.url_shortener.utils.WithRateLimitProtection)")
+	public void rateLimit() {
+		ServletRequestAttributes requestAttributes = (ServletRequestAttributes) RequestContextHolder
+			.currentRequestAttributes();
 
-    private boolean timeIsTooOld(final long currentTime, final long timeToCheck) {
-        return currentTime - timeToCheck > rateDuration;
-    }
+		String ipAddress = requestAttributes.getRequest().getRemoteAddr();
+		long currentTime = System.currentTimeMillis();
+
+		requestCounts.putIfAbsent(ipAddress, new ArrayList<>());
+		requestCounts.get(ipAddress).add(currentTime);
+		cleanUpRequestCounts(currentTime);
+		if (requestCounts.get(ipAddress).size() > rateLimit) {
+			throw new RateLimitException(String.format(ERROR_MESSAGE, requestAttributes.getRequest().getRequestURI(),
+					ipAddress, rateDuration));
+		}
+	}
+
+	private void cleanUpRequestCounts(final long currentTime) {
+		requestCounts.values().forEach(l -> {
+			l.removeIf(t -> timeIsTooOld(currentTime, t));
+		});
+	}
+
+	private boolean timeIsTooOld(long currentTime, long timeToCheck) {
+		return currentTime - timeToCheck > rateDuration;
+	}
+
 }
-

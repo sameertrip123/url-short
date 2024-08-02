@@ -16,15 +16,16 @@ import java.time.Instant;
 @NoArgsConstructor
 public class ShortUrl {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    private String originalUrl;
+	private String originalUrl;
 
-    private String shortCode;
+	private String shortCode;
 
-    private Instant createdAt;
+	private Instant createdAt;
 
-    private Long accessCount;
+	private Long accessCount;
+
 }

@@ -3,7 +3,8 @@ package com.example.url_shortener.service;
 import com.example.url_shortener.entities.ShortUrl;
 import com.example.url_shortener.exception.InvalidUrlException;
 import com.example.url_shortener.exception.ResourceNotFoundException;
-import com.example.url_shortener.repository.ShortUrlRepository;
+import com.example.url_shortener.repository.UrlShortenRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -14,64 +15,69 @@ import java.time.Instant;
 import java.util.Optional;
 
 @Service
+@Slf4j
 public class UrlShortenService {
 
-    private final UrlShortenServiceHelper urlShortenServiceHelper;
+	private final UrlShortenServiceHelper urlShortenServiceHelper;
 
-    private final ShortUrlRepository shortUrlRepository;
+	private final UrlShortenRepository urlShortenRepository;
 
-    public UrlShortenService(UrlShortenServiceHelper urlShortenServiceHelper, ShortUrlRepository shortUrlRepository) {
-        this.urlShortenServiceHelper = urlShortenServiceHelper;
-        this.shortUrlRepository = shortUrlRepository;
-    }
+	public UrlShortenService(UrlShortenServiceHelper urlShortenServiceHelper,
+			UrlShortenRepository urlShortenRepository) {
+		this.urlShortenServiceHelper = urlShortenServiceHelper;
+		this.urlShortenRepository = urlShortenRepository;
+	}
 
-    public ResponseEntity<?> shortenUrl(String url) throws MalformedURLException, URISyntaxException {
-        // Check if the URL is valid
-        if (!this.urlShortenServiceHelper.isValidURL(url)) {
-            throw new InvalidUrlException("Invalid URl");
-        }
+	public ResponseEntity<?> shortenUrl(String url) throws MalformedURLException, URISyntaxException {
+		// Check if the URL is valid
+		if (!this.urlShortenServiceHelper.isValidURL(url)) {
+			log.error("Invalid URL");
+			throw new InvalidUrlException("Invalid URl");
+		}
 
-        // Get the short URL from the long url
-        String shortenedUrl = this.urlShortenServiceHelper.getShortUrl(url);
+		// Get the short URL from the long url
+		String shortenedUrl = this.urlShortenServiceHelper.getShortUrl(url);
 
-        // Create the entity
-        ShortUrl shortUrl = ShortUrl.builder()
-                .originalUrl(url)
-                .shortCode(shortenedUrl)
-                .accessCount(0L)
-                .createdAt(Instant.now())
-                .build();
+		// Create the entity
+		ShortUrl shortUrl = ShortUrl.builder()
+			.originalUrl(url)
+			.shortCode(shortenedUrl)
+			.accessCount(0L)
+			.createdAt(Instant.now())
+			.build();
 
-        // Save the entity in the DB
-        this.shortUrlRepository.save(shortUrl);
+		// Save the entity in the DB
+		this.urlShortenRepository.save(shortUrl);
 
-        return new ResponseEntity<>(shortenedUrl, HttpStatus.OK);
-    }
+		return new ResponseEntity<>(shortenedUrl, HttpStatus.OK);
+	}
 
+	public ResponseEntity<?> getStatistics(String shortCode) {
+		Optional<ShortUrl> shortUrl = this.urlShortenRepository.findByShortCode(shortCode);
+		if (shortUrl.isEmpty()) {
+			log.error("Short URL does not exists");
+			throw new ResourceNotFoundException("Short URL does not exists");
+		}
 
-    public ResponseEntity<?> getStatistics(String shortCode) {
-        Optional<ShortUrl> shortUrl = this.shortUrlRepository.findByShortCode(shortCode);
-        if (shortUrl.isEmpty()) {
-            throw new ResourceNotFoundException("Short URL doesnt exists");
-        }
+		Long accessCount = shortUrl.get().getAccessCount();
 
-        Long accessCount = shortUrl.get().getAccessCount();
+		return new ResponseEntity<>(accessCount, HttpStatus.OK);
+	}
 
-        return new ResponseEntity<>(accessCount, HttpStatus.OK);
-    }
+	public void redirect(String shortCode) {
+		Optional<ShortUrl> shortUrl = this.urlShortenRepository.findByShortCode(shortCode);
+		if (shortUrl.isEmpty()) {
+			log.error("Short URL does not exists");
+			throw new ResourceNotFoundException("Short URL does not exists");
+		}
 
-    public void redirect(String shortCode) {
-        Optional<ShortUrl> shortUrl = this.shortUrlRepository.findByShortCode(shortCode);
-        if (shortUrl.isEmpty()) {
-            throw new ResourceNotFoundException("URL does not exists");
-        }
+		Long accessCount = shortUrl.get().getAccessCount();
 
-        Long accessCount = shortUrl.get().getAccessCount();
+		shortUrl.get().setAccessCount(accessCount + 1);
 
-        shortUrl.get().setAccessCount(accessCount + 1);
+		this.urlShortenRepository.save(shortUrl.get());
 
-        this.shortUrlRepository.save(shortUrl.get());
+		this.urlShortenServiceHelper.redirectURL(shortUrl.get());
+	}
 
-        this.urlShortenServiceHelper.redirectURL(shortUrl.get());
-    }
 }
