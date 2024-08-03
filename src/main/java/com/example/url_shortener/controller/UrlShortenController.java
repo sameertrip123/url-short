@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 
 @RestController
 @Slf4j
@@ -24,7 +23,7 @@ public class UrlShortenController {
 	@WithRateLimitProtection
 	@PostMapping("/api/shorten")
 	public ResponseEntity<?> shortenUrl(@Valid @RequestBody RequestBodyDto requestBodyDto)
-			throws MalformedURLException, URISyntaxException {
+			throws MalformedURLException {
 		log.info("Shorten URL called");
 		return this.urlShortenService.shortenUrl(requestBodyDto.getUrl());
 	}

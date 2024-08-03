@@ -10,7 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -28,18 +27,24 @@ public class UrlShortenService {
 		this.urlShortenRepository = urlShortenRepository;
 	}
 
-	public ResponseEntity<?> shortenUrl(String url) throws MalformedURLException, URISyntaxException {
+	public ResponseEntity<?> shortenUrl(String url) throws MalformedURLException {
 		// Check if the URL is valid
 		if (!this.urlShortenServiceHelper.isValidURL(url)) {
 			log.error("Invalid URL");
 			throw new InvalidUrlException("Invalid URl");
 		}
 
+		Optional<ShortUrl> shortUrl = this.urlShortenRepository.findByOriginalUrl(url);
+		if (shortUrl.isPresent()) {
+			log.error("Url is already shortened");
+			return new ResponseEntity<>(shortUrl.get().getShortCode(), HttpStatus.OK);
+		}
+
 		// Get the short URL from the long url
 		String shortenedUrl = this.urlShortenServiceHelper.getShortUrl(url);
 
 		// Create the entity
-		ShortUrl shortUrl = ShortUrl.builder()
+		ShortUrl newShortUrl = ShortUrl.builder()
 			.originalUrl(url)
 			.shortCode(shortenedUrl)
 			.accessCount(0L)
@@ -47,7 +52,7 @@ public class UrlShortenService {
 			.build();
 
 		// Save the entity in the DB
-		this.urlShortenRepository.save(shortUrl);
+		this.urlShortenRepository.save(newShortUrl);
 
 		return new ResponseEntity<>(shortenedUrl, HttpStatus.OK);
 	}

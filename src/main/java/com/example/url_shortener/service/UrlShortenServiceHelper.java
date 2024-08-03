@@ -24,7 +24,7 @@ public class UrlShortenServiceHelper {
 		// Redirect the page
 	}
 
-	boolean isValidURL(String url) throws MalformedURLException, URISyntaxException {
+	boolean isValidURL(String url) throws MalformedURLException {
 		URI.create(url).toURL();
 		return true;
 	}
